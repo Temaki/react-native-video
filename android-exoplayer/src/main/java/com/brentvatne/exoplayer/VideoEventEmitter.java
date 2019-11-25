@@ -2,6 +2,7 @@ package com.brentvatne.exoplayer;
 
 import androidx.annotation.StringDef;
 import android.view.View;
+import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactContext;
@@ -125,7 +126,7 @@ class VideoEventEmitter {
 
     private static final String EVENT_PROP_TIMED_METADATA = "metadata";
 
-    private static final String EVENT_PROP_BITRATE = "bitrate";   
+    private static final String EVENT_PROP_BITRATE = "bitrate";
 
 
     void setViewId(int viewId) {
@@ -137,7 +138,7 @@ class VideoEventEmitter {
     }
 
     void load(double duration, double currentPosition, int videoWidth, int videoHeight,
-              WritableArray audioTracks, WritableArray textTracks, WritableArray videoTracks) {
+              WritableArray audioTracks, WritableArray textTracks, WritableArray videoTracks, int rotation) {
         WritableMap event = Arguments.createMap();
         event.putDouble(EVENT_PROP_DURATION, duration / 1000D);
         event.putDouble(EVENT_PROP_CURRENT_TIME, currentPosition / 1000D);
@@ -145,11 +146,33 @@ class VideoEventEmitter {
         WritableMap naturalSize = Arguments.createMap();
         naturalSize.putInt(EVENT_PROP_WIDTH, videoWidth);
         naturalSize.putInt(EVENT_PROP_HEIGHT, videoHeight);
-        if (videoWidth > videoHeight) {
-            naturalSize.putString(EVENT_PROP_ORIENTATION, "landscape");
+
+        // 0 = landscape left
+        // 90 = portrait (Upside down)
+        // 180 = landscape right
+        // 270 = portrait
+
+        if (rotation == 0 || rotation == 180) {
+
+          // IOS always has rotation 0, so we do the old check
+          if (videoWidth > videoHeight) {
+              naturalSize.putString(EVENT_PROP_ORIENTATION, "landscape");
+          } else {
+              naturalSize.putString(EVENT_PROP_ORIENTATION, "portrait");
+          }
+
         } else {
-            naturalSize.putString(EVENT_PROP_ORIENTATION, "portrait");
+
+          naturalSize.putString(EVENT_PROP_ORIENTATION, "portrait");
+
+          // Android videos always have a 16:9 ratio, for the right dimensions they need to be switched
+          naturalSize.putInt(EVENT_PROP_WIDTH, videoHeight);
+          naturalSize.putInt(EVENT_PROP_HEIGHT, videoWidth);
+
         }
+
+
+
         event.putMap(EVENT_PROP_NATURAL_SIZE, naturalSize);
 
         event.putArray(EVENT_PROP_VIDEO_TRACKS, videoTracks);
@@ -180,7 +203,7 @@ class VideoEventEmitter {
         WritableMap event = Arguments.createMap();
         event.putDouble(EVENT_PROP_BITRATE, bitRateEstimate);
         receiveEvent(EVENT_BANDWIDTH, event);
-    }    
+    }
 
     void seek(long currentPosition, long seekTime) {
         WritableMap event = Arguments.createMap();
